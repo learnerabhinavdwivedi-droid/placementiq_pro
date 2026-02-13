@@ -116,3 +116,4 @@ def get_reddit_strategy(missing_skills, role):
         subjective_advice.append(advice)
     
     return subjective_advice
+
