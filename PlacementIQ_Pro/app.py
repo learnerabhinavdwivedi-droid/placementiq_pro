@@ -60,7 +60,7 @@ three_js_code = """
 """
 components.html(three_js_code, height=0)
 
-# --- 3. BEAST MODE CSS (Horizontal Navigation & High Glow) ---
+# --- 3. BEAST MODE CSS ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
@@ -90,19 +90,14 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 4. PERMANENT ENGINE LOAD (Integrated with train_model.py logic) ---
+# --- 4. ENGINE LOAD ---
 MODEL_DIR = "data"
 MODEL_PATH = os.path.join(MODEL_DIR, "placement_model.pkl")
-
-# Force directory creation if it doesn't exist
-if not os.path.exists(MODEL_DIR):
-    os.makedirs(MODEL_DIR)
+if not os.path.exists(MODEL_DIR): os.makedirs(MODEL_DIR)
 
 try:
     model = joblib.load(MODEL_PATH)
-    engine_online = True
 except:
-    engine_online = False
     st.sidebar.warning("🤖 Model Offline. Run train_model.py in terminal.")
 
 # --- 5. SIDEBAR NAVIGATION ---
@@ -117,52 +112,69 @@ with st.sidebar:
     """, unsafe_allow_html=True)
 
     st.markdown("<p style='color: #ff7a00; font-weight: 800; margin-bottom: 10px; font-size: 0.8rem;'>🧭 NAVIGATE PAGES</p>", unsafe_allow_html=True)
-    
-    # FIXED: Added unique key to prevent DuplicateElementId error
-    page_selection = st.radio(
-        label="Nav", 
-        options=["INGESTION", "ROADMAP", "FEED"], 
-        label_visibility="collapsed",
-        key="primary_navigation_rail"
-    )
+    page_selection = st.radio(label="Nav", options=["INGESTION", "ROADMAP", "FEED"], label_visibility="collapsed", key="primary_navigation_rail")
     
     st.markdown("<br><br>", unsafe_allow_html=True)
-
     if 'current_target' in st.session_state:
-        st.markdown(f'''
-            <div style="background: rgba(255, 122, 0, 0.05); border: 1px solid rgba(255, 122, 0, 0.4); border-radius: 12px; padding: 15px;">
-                <small style="color: #ff7a00; font-weight: 800;">CURRENT TARGET</small>
-                <h3 style="margin: 0; color: white; font-size: 1.1rem;">{st.session_state.current_target}</h3>
-            </div>
-        ''', unsafe_allow_html=True)
-
+        st.markdown(f'''<div style="background: rgba(255, 122, 0, 0.05); border: 1px solid #ff7a00; border-radius: 12px; padding: 15px;"><small style="color: #ff7a00; font-weight: 800;">CURRENT TARGET</small><h3 style="margin: 0; color: white; font-size: 1.1rem;">{st.session_state.current_target}</h3></div>''', unsafe_allow_html=True)
     st.markdown('<div class="dev-credit">MADE BY @ABHINAV_DVD</div>', unsafe_allow_html=True)
 
 # --- 6. PAGE CONTENT ---
 if page_selection == "INGESTION":
     st.markdown("<h2 style='color: #ff7a00;'>🖥️ INGESTION ZONE</h2>", unsafe_allow_html=True)
     col_in, col_stats = st.columns([1, 1], gap="large")
+    
     with col_in:
         st.markdown('<div class="feature-card">', unsafe_allow_html=True)
-        st.subheader("📝 Profile Parameters")
+        st.subheader("📝 Profile Input")
         cgpa = st.number_input("University CGPA", 0.0, 10.0, 7.8)
         projects = st.slider("Innovation Projects", 0, 10, 3)
-        resume_text = st.text_area("📄 Digital Resume", height=150, placeholder="Paste resume content...")
-        jd_text = st.text_area("🎯 Job Description", height=150, placeholder="Paste target JD...")
+        
+        pasted_resume = st.text_area("📄 Digital Resume (Manual Paste)", height=150, placeholder="Paste text content...")
+        uploaded_file = st.file_uploader("📤 Or Upload Resume (PDF / Image)", type=["pdf", "png", "jpg", "jpeg"])
+        
+        resume_text = pasted_resume # Default
+        
+        if uploaded_file is not None:
+            with st.spinner("Extracting content..."):
+                try:
+                    if uploaded_file.type == "application/pdf":
+                        import PyPDF2
+                        reader = PyPDF2.PdfReader(uploaded_file)
+                        resume_text = " ".join([page.extract_text() for page in reader.pages if page.extract_text()])
+                    else:
+                        import easyocr
+                        from PIL import Image
+                        if 'ocr_reader' not in st.session_state:
+                            st.session_state.ocr_reader = easyocr.Reader(['en'])
+                        image = Image.open(uploaded_file)
+                        result = st.session_state.ocr_reader.readtext(np.array(image), detail=0)
+                        resume_text = " ".join(result)
+                    st.success("✅ Content extracted from file successfully!")
+                except Exception as e:
+                    st.error(f"Error processing file: {e}")
+
+        jd_text = st.text_area("🎯 Job Description", height=150, placeholder="Paste JD here...")
         st.markdown('</div>', unsafe_allow_html=True)
+
     with col_stats:
-        if jd_text and resume_text:
+        if jd_text and (resume_text and resume_text.strip()):
             role = infer_target_path(jd_text)
             st.session_state.current_target = role
             score, found, missing = run_ats_check(resume_text, jd_text, role)
             st.session_state.missing_skills = missing
+            
             st.markdown('<div class="feature-card">', unsafe_allow_html=True)
             st.subheader(f"🤖 AI Audit: {role}")
             st.metric("ATS Readiness Score", f"{score}%")
             st.progress(score/100)
+            
+            st.write("**Key Skills Identified:**")
+            skills_html = "".join([f'<span style="background: rgba(255,122,0,0.2); border: 1px solid #ff7a00; padding: 2px 8px; border-radius: 4px; margin-right: 5px; font-size: 0.8rem;">{s}</span>' for s in found[:8]])
+            st.markdown(skills_html, unsafe_allow_html=True)
             st.markdown('</div>', unsafe_allow_html=True)
         else:
-            st.info("Input Resume and JD to begin AI Audit.")
+            st.info("💡 Input your Resume (Pasted or Uploaded) and a Job Description to begin the AI Audit.")
 
 elif page_selection == "ROADMAP":
     st.markdown("<h2 style='color: #ff7a00;'>📊 READINESS & ROADMAP</h2>", unsafe_allow_html=True)

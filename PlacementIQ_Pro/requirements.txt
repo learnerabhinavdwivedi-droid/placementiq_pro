@@ -8,3 +8,7 @@ requests
 beautifulsoup4
 PyPDF2
 plotly
+PyPDF2
+easyocr
+Pillow
+opencv-python-headless
