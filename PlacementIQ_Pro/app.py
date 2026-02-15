@@ -1,8 +1,10 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import numpy as np
 import joblib
 import pandas as pd
 import plotly.express as px
+import os
 
 # Core Logic Imports
 from modules.ai_engine import run_ats_check, infer_target_path, get_reddit_strategy
@@ -37,7 +39,29 @@ if not st.session_state.authenticated:
             st.rerun()
     st.stop()
 
-# --- 2. GLOBAL CSS (Sidebar, Navigation & Arrow) ---
+# --- 2. PERMANENT 3D DESIGN (Mechanical Theme) ---
+# Rotating Wireframe Gear in the corner
+three_js_code = """
+<div id="container" style="position: fixed; bottom: 0; right: 0; width: 300px; height: 300px; z-index: 0; pointer-events: none; opacity: 0.4;"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+    renderer.setSize(300, 300);
+    document.getElementById('container').appendChild(renderer.domElement);
+    const geometry = new THREE.TorusKnotGeometry(10, 3, 100, 16);
+    const material = new THREE.MeshBasicMaterial({ color: 0xff7a00, wireframe: true, transparent: true, opacity: 0.5 });
+    const gear = new THREE.Mesh(geometry, material);
+    scene.add(gear);
+    camera.position.z = 30;
+    function animate() { requestAnimationFrame(animate); gear.rotation.x += 0.005; gear.rotation.y += 0.01; renderer.render(scene, camera); }
+    animate();
+</script>
+"""
+components.html(three_js_code, height=0)
+
+# --- 3. GLOBAL CSS (Sidebar, Navigation & High-Glow) ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
@@ -45,15 +69,14 @@ st.markdown("""
     .stApp { background: #0b0e11; color: #ffffff; font-family: 'Plus Jakarta Sans', sans-serif; }
     h1, h2, h3, b, label, .stMetricValue { font-weight: 800 !important; }
 
-    /* Sidebar Layering Fix */
+    /* Sidebar Fix and Toggle Layering */
     [data-testid="stSidebar"] { 
         background-color: #0b0e11 !important; 
         border-right: 1px solid rgba(255, 255, 255, 0.05); 
         z-index: 1000 !important;
-        visibility: visible !important;
     }
 
-    /* Horizontal Button Rail */
+    /* Horizontal Radio Rail */
     [data-testid="stSidebar"] div[role="radiogroup"] {
         flex-direction: row !important;
         justify-content: flex-start !important;
@@ -68,13 +91,14 @@ st.markdown("""
         padding: 10px 8px !important;
         min-width: 80px !important;
         position: relative;
+        transition: 0.3s;
     }
 
-    /* Selection Indicator Arrow */
+    /* Active Selection Glow & Indicator Arrow */
     [data-testid="stSidebar"] div[role="radiogroup"] label:has(input:checked) {
         border: 2px solid #ff7a00 !important;
         background: rgba(255, 122, 0, 0.1) !important;
-        box-shadow: 0 0 15px rgba(255, 122, 0, 0.5) !important;
+        box-shadow: 0 0 15px rgba(255, 122, 0, 0.4);
     }
 
     [data-testid="stSidebar"] div[role="radiogroup"] label:has(input:checked)::after {
@@ -88,7 +112,7 @@ st.markdown("""
         font-size: 1.4rem;
     }
 
-    /* Label Styling */
+    /* Hide Native Elements & Style Text */
     [data-testid="stSidebar"] div[role="radiogroup"] label div:first-child { display: none !important; }
     [data-testid="stSidebar"] div[role="radiogroup"] label p {
         font-size: 0.65rem !important;
@@ -113,20 +137,21 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 3. ENGINE LOAD ---
+# --- 4. ENGINE LOAD ---
 try:
     model = joblib.load("data/placement_model.pkl")
 except:
-    st.warning("Prediction Engine offline. Check 'data/' folder.")
+    st.sidebar.warning("🤖 Model Offline. Run train_model.py first.")
 
-# --- 4. COMMAND RAIL (Sidebar) ---
+# --- 5. SIDEBAR NAVIGATION ---
 with st.sidebar:
+    # Logo & Name
     st.markdown("""
         <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 25px;">
-            <div style="background: linear-gradient(45deg, #ff7a00, #ff9500); width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+            <div style="background: linear-gradient(45deg, #ff7a00, #ff9500); width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 15px rgba(255, 122, 0, 0.4);">
                 <span style="color: white; font-weight: 800; font-size: 1.1rem;">IQ</span>
             </div>
-            <h1 style='color: #ffffff; font-size: 1.5rem; letter-spacing: -1.2px; margin: 0;'>Placement<span style='color: #ff7a00;'>IQ.</span></h1>
+            <h1 style='color: #ffffff; font-size: 1.5rem; letter-spacing: -1px; margin: 0;'>Placement<span style='color: #ff7a00;'>IQ.</span></h1>
         </div>
     """, unsafe_allow_html=True)
 
@@ -145,7 +170,7 @@ with st.sidebar:
 
     st.markdown('<div class="dev-credit">MADE BY @ABHINAV_DVD</div>', unsafe_allow_html=True)
 
-# --- 5. PAGE LOGIC ---
+# --- 6. PAGE CONTENT LOGIC ---
 
 if page_selection == "INGESTION":
     st.markdown("<h2 style='color: #ff7a00;'>🖥️ INGESTION ZONE</h2>", unsafe_allow_html=True)
@@ -153,11 +178,11 @@ if page_selection == "INGESTION":
     
     with col_in:
         st.markdown('<div class="feature-card">', unsafe_allow_html=True)
-        st.subheader("📝 Profile Parameters")
+        st.subheader("📝 Profile Input")
         cgpa = st.number_input("University CGPA", 0.0, 10.0, 7.8)
         projects = st.slider("Innovation Projects", 0, 10, 3)
-        resume_text = st.text_area("📄 Resume Content", height=150, placeholder="Paste your resume text here...")
-        jd_text = st.text_area("🎯 Target Job Description", height=150, placeholder="Paste the JD here...")
+        resume_text = st.text_area("📄 Digital Resume", height=150, placeholder="Paste text content...")
+        jd_text = st.text_area("🎯 Job Description", height=150, placeholder="Paste JD here...")
         st.markdown('</div>', unsafe_allow_html=True)
 
     with col_stats:
@@ -169,9 +194,9 @@ if page_selection == "INGESTION":
             
             st.markdown('<div class="feature-card">', unsafe_allow_html=True)
             st.subheader(f"🤖 AI Audit: {role}")
-            st.metric("ATS Readiness Score", f"{score}%")
+            st.metric("Readiness Score", f"{score}%")
             st.progress(score/100)
-            st.write(f"**Skills Found:** {', '.join(found[:5])}...")
+            st.write(f"**Key Skills Found:** {', '.join(found[:5])}")
             st.markdown('</div>', unsafe_allow_html=True)
         else:
             st.info("Input Resume and JD to begin AI Audit.")
@@ -182,7 +207,6 @@ elif page_selection == "ROADMAP":
         col_map, col_strat = st.columns([1.2, 1], gap="large")
         with col_map:
             st.markdown('<div class="feature-card">', unsafe_allow_html=True)
-            st.subheader("🚀 Competency Mapping")
             radar_data = pd.DataFrame(dict(r=[8, 7, 9, 6, 5], theta=['Tech', 'Design', 'Soft Skills', 'ATS', 'Projects']))
             fig = px.line_polar(radar_data, r='r', theta='theta', line_close=True)
             fig.update_traces(fill='toself', fillcolor='rgba(255, 122, 0, 0.2)', line_color='#ff7a00')
@@ -191,13 +215,11 @@ elif page_selection == "ROADMAP":
             st.markdown('</div>', unsafe_allow_html=True)
         with col_strat:
             st.markdown('<div class="feature-card">', unsafe_allow_html=True)
-            st.subheader("🛠️ Strategy Roadmap")
+            st.subheader("🛠️ Strategic Roadmap")
             strategies = get_reddit_strategy(st.session_state.get('missing_skills', []), st.session_state.current_target)
             for s in strategies:
                 st.markdown(f"<div style='border-left: 3px solid #ff7a00; padding-left: 15px; margin-bottom: 15px; font-weight: 600;'>{s}</div>", unsafe_allow_html=True)
             st.markdown('</div>', unsafe_allow_html=True)
-    else:
-        st.warning("Please complete Ingestion Zone first.")
 
 elif page_selection == "FEED":
     st.markdown("<h2 style='color: #ff7a00;'>🎯 OPPORTUNITY FEED</h2>", unsafe_allow_html=True)
@@ -213,6 +235,4 @@ elif page_selection == "FEED":
                     </div>
                 """, unsafe_allow_html=True)
         else:
-            st.info("No active openings found. Refresh in 5 mins.")
-    else:
-        st.warning("Define a target path in Ingestion Zone to view jobs.")
+            st.info("Searching for roles...")
